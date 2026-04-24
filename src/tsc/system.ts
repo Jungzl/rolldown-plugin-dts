@@ -1,7 +1,17 @@
+import path from 'node:path'
+import process from 'node:process'
 import { createDebug } from 'obug'
 import ts from 'typescript'
 
 const debug = createDebug('rolldown-plugin-dts:tsc-system')
+
+export function normalizePath(id: string): string {
+  return path.posix.normalize(
+    process !== undefined && process.platform === 'win32'
+      ? id.replaceAll('\\', '/')
+      : id,
+  )
+}
 
 /**
  * A system that writes files to both memory and disk. It will try read files
@@ -19,42 +29,50 @@ export function createFsSystem(files: Map<string, string>): ts.System {
     // Copied from
     // https://github.com/microsoft/TypeScript-Website/blob/b0e9a5c0/packages/typescript-vfs/src/index.ts#L571-L574
     resolvePath(path) {
-      if (files.has(path)) {
-        return path
+      const memKey = normalizePath(path)
+      if (files.has(memKey)) {
+        return memKey
       }
-      return ts.sys.resolvePath(path)
+      return normalizePath(ts.sys.resolvePath(path))
     },
 
     // Copied from
     // https://github.com/microsoft/TypeScript-Website/blob/b0e9a5c0/packages/typescript-vfs/src/index.ts#L532C1-L534C8
     directoryExists(directory) {
-      if (Array.from(files.keys()).some((path) => path.startsWith(directory))) {
+      const memKey = normalizePath(directory)
+      const prefix = memKey.endsWith('/') ? memKey : `${memKey}/`
+      if (
+        Array.from(files.keys()).some(
+          (fileName) => fileName === memKey || fileName.startsWith(prefix),
+        )
+      ) {
         return true
       }
       return ts.sys.directoryExists(directory)
     },
 
     fileExists(fileName) {
-      if (files.has(fileName)) {
+      if (files.has(normalizePath(fileName))) {
         return true
       }
       return ts.sys.fileExists(fileName)
     },
 
     readFile(fileName, ...args) {
-      if (files.has(fileName)) {
-        return files.get(fileName)
+      const memKey = normalizePath(fileName)
+      if (files.has(memKey)) {
+        return files.get(memKey)
       }
       return ts.sys.readFile(fileName, ...args)
     },
 
     writeFile(path, data, ...args) {
-      files.set(path, data)
+      files.set(normalizePath(path), data)
       ts.sys.writeFile(path, data, ...args)
     },
 
     deleteFile(fileName, ...args) {
-      files.delete(fileName)
+      files.delete(normalizePath(fileName))
       ts.sys.deleteFile?.(fileName, ...args)
     },
   }
@@ -67,11 +85,11 @@ export function createMemorySystem(files: Map<string, string>): ts.System {
     ...createFsSystem(files),
 
     writeFile(path, data) {
-      files.set(path, data)
+      files.set(normalizePath(path), data)
     },
 
     deleteFile(fileName) {
-      files.delete(fileName)
+      files.delete(normalizePath(fileName))
     },
   }
 }

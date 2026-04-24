@@ -1,5 +1,5 @@
 {
-  "context-!~{003}~.d.mts": {
+  "context-!~{005}~.d.mts": {
     "createContext": "declare function createContext(): TscContext",
     "globalContext": "TscContext",
     "invalidateContextFile": "declare function invalidateContextFile(_: TscContext, _: string): void",
@@ -7,22 +7,22 @@
     "SourceFileToProjectMap": "type SourceFileToProjectMap = Map<string, ParsedProject>",
     "TscContext": "interface TscContext {\n programs: ts.Program[]\n files: Map<string, string>\n projects: Map<string, SourceFileToProjectMap>\n}"
   },
-  "index-!~{004}~.d.mts": {
+  "index-!~{006}~.d.mts": {
     "tscEmit": "declare function tscEmit(_: TscOptions): TscResult",
     "TscModule": "interface TscModule {\n program: ts.Program\n file: ts.SourceFile\n}",
-    "TscOptions": "interface TscOptions {\n tsconfig?: string\n tsconfigRaw: TsConfigJson\n cwd: string\n build: boolean\n incremental: boolean\n entries?: string[]\n id: string\n sourcemap: boolean\n vue?: boolean\n tsMacro?: boolean\n context?: TscContext\n}",
+    "TscOptions": "interface TscOptions {\n tsconfig?: string\n tsconfigRaw: TsConfigJson\n cwd: string\n build: boolean\n incremental: boolean\n entries?: string[]\n id: string\n sourcemap: boolean\n vue?: boolean\n tsMacro?: boolean\n svelte?: boolean\n svelteFiles?: Record<string, string>\n svelteShim?: string\n context?: TscContext\n}",
     "TscResult": "interface TscResult {\n code?: string\n map?: SourceMapInput\n error?: string\n}"
   },
   "index.d.mts": {
     "createFakeJsPlugin": "declare function createFakeJsPlugin(_: Pick<OptionsResolved, 'sourcemap' | 'cjsDefault' | 'sideEffects'>): Plugin",
-    "createGeneratePlugin": "declare function createGeneratePlugin(_: Pick<OptionsResolved, 'entry' | 'cwd' | 'tsconfig' | 'tsconfigRaw' | 'build' | 'incremental' | 'oxc' | 'emitDtsOnly' | 'vue' | 'tsMacro' | 'parallel' | 'eager' | 'tsgo' | 'newContext' | 'emitJs' | 'sourcemap'>): Plugin",
+    "createGeneratePlugin": "declare function createGeneratePlugin(_: Pick<OptionsResolved, 'entry' | 'cwd' | 'tsconfig' | 'tsconfigRaw' | 'build' | 'incremental' | 'oxc' | 'emitDtsOnly' | 'vue' | 'tsMacro' | 'svelte' | 'parallel' | 'eager' | 'tsgo' | 'newContext' | 'emitJs' | 'sourcemap'>): Plugin",
     "dts": "declare function dts(_: Options): Plugin[]",
     "GeneralOptions": "interface GeneralOptions {\n entry?: string | string[]\n cwd?: string\n dtsInput?: boolean\n emitDtsOnly?: boolean\n tsconfig?: string | boolean\n tsconfigRaw?: Omit<TsConfigJson, 'compilerOptions'>\n compilerOptions?: TsConfigJson.CompilerOptions\n sourcemap?: boolean\n resolver?: 'oxc' | 'tsc'\n cjsDefault?: boolean\n sideEffects?: boolean\n}",
     "Options": "interface Options extends GeneralOptions, TscOptions {\n oxc?: boolean | Omit<IsolatedDeclarationsOptions, 'sourcemap'>\n tsgo?: boolean | TsgoOptions\n}",
     "OptionsResolved": "type OptionsResolved = Overwrite<Required<Omit<Options, 'compilerOptions'>>, { entry?: string[]; tsconfig?: string; oxc: IsolatedDeclarationsOptions | false; tsconfigRaw: TsConfigJson; tsgo: Omit<TsgoOptions, 'enabled'> | false }>",
     "Overwrite": "type Overwrite<T, U> = Pick<T, Exclude<keyof T, keyof U>> & U",
     "resolveOptions": "declare function resolveOptions(_: Options): OptionsResolved",
-    "TscOptions": "interface TscOptions {\n build?: boolean\n incremental?: boolean\n vue?: boolean\n tsMacro?: boolean\n parallel?: boolean\n eager?: boolean\n newContext?: boolean\n emitJs?: boolean\n}",
+    "TscOptions": "interface TscOptions {\n build?: boolean\n incremental?: boolean\n vue?: boolean\n svelte?: boolean\n tsMacro?: boolean\n parallel?: boolean\n eager?: boolean\n newContext?: boolean\n emitJs?: boolean\n}",
     "TsgoOptions": "interface TsgoOptions {\n enabled?: boolean\n path?: string\n}",
     "#exports": [
       "Options",
@@ -43,6 +43,7 @@
     "RE_JSON": "RegExp",
     "RE_NODE_MODULES": "RegExp",
     "RE_ROLLDOWN_RUNTIME": "RegExp",
+    "RE_SVELTE": "RegExp",
     "RE_TS": "RegExp",
     "RE_VUE": "RegExp",
     "replaceTemplateName": "declare function replaceTemplateName(_: string, _: string): string",
@@ -55,6 +56,7 @@
       "RE_JSON",
       "RE_NODE_MODULES",
       "RE_ROLLDOWN_RUNTIME",
+      "RE_SVELTE",
       "RE_TS",
       "RE_VUE",
       "filename_dts_to",

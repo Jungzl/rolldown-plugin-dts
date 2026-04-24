@@ -148,6 +148,10 @@ Enabling this option can speed up builds by caching previous results, which is h
 
 If `true`, the plugin will generate `.d.ts` files using `vue-tsc`.
 
+#### `svelte`
+
+If `true`, the plugin will generate `.d.ts` files using `svelte2tsx`.
+
 #### `parallel`
 
 If `true`, the plugin will launch a separate process for `tsc` or `vue-tsc`, enabling parallel processing of multiple projects.

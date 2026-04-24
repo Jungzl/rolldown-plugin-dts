@@ -14,6 +14,7 @@ import {
   RE_JSON,
   RE_NODE_MODULES,
   RE_ROLLDOWN_RUNTIME,
+  RE_SVELTE,
   RE_TS,
   RE_VUE,
   replaceTemplateName,
@@ -25,6 +26,11 @@ import {
   invalidateContextFile,
   type TscContext,
 } from './tsc/context.ts'
+import {
+  createSvelteVirtualFiles,
+  restoreSvelteImport,
+  toSvelteTsxId,
+} from './tsc/svelte.ts'
 import { runTsgo } from './tsgo.ts'
 import type { OptionsResolved } from './options.ts'
 import type { TscOptions, TscResult } from './tsc/index.ts'
@@ -36,6 +42,22 @@ import type { Plugin, SourceMapInput } from 'rolldown'
 const debug = createDebug('rolldown-plugin-dts:generate')
 
 const WORKER_URL = import.meta.WORKER_URL || './tsc/worker.ts'
+const DTS_VIRTUAL_QUERY = '?virtual'
+const RE_SVELTE_DTS = /\.svelte\.d\.[cm]?ts$/
+
+function toMaybeVirtualDtsId(id: string): string {
+  if (RE_SVELTE_DTS.test(id)) {
+    return `${id}${DTS_VIRTUAL_QUERY}`
+  }
+  return id
+}
+
+function fromVirtualDtsId(id: string): string {
+  if (id.endsWith(DTS_VIRTUAL_QUERY)) {
+    return id.slice(0, -DTS_VIRTUAL_QUERY.length)
+  }
+  return id
+}
 
 export interface TsModule {
   /** `.ts` source code */
@@ -58,6 +80,7 @@ export function createGeneratePlugin({
   emitDtsOnly,
   vue,
   tsMacro,
+  svelte,
   parallel,
   eager,
   tsgo,
@@ -76,6 +99,7 @@ export function createGeneratePlugin({
   | 'emitDtsOnly'
   | 'vue'
   | 'tsMacro'
+  | 'svelte'
   | 'parallel'
   | 'eager'
   | 'tsgo'
@@ -176,9 +200,11 @@ export function createGeneratePlugin({
     },
 
     resolveId(id) {
-      if (dtsMap.has(id)) {
-        debug('resolve dts id %s', id)
-        return { id }
+      const dtsId = fromVirtualDtsId(id)
+      if (dtsMap.has(dtsId)) {
+        const virtualId = toMaybeVirtualDtsId(dtsId)
+        debug('resolve dts id %s -> %s', dtsId, virtualId)
+        return { id: virtualId }
       }
     },
 
@@ -186,7 +212,7 @@ export function createGeneratePlugin({
       order: 'pre',
       filter: {
         id: {
-          include: [RE_JS, RE_TS, RE_VUE, RE_JSON],
+          include: [RE_JS, RE_TS, RE_VUE, RE_SVELTE, RE_JSON],
           exclude: [RE_DTS, RE_NODE_MODULES, RE_ROLLDOWN_RUNTIME],
         },
       },
@@ -227,16 +253,26 @@ export function createGeneratePlugin({
         },
       },
       async handler(dtsId) {
-        if (!dtsMap.has(dtsId)) return
+        const resolvedDtsId = fromVirtualDtsId(dtsId)
+        if (!dtsMap.has(resolvedDtsId)) return
 
-        const { code, id } = dtsMap.get(dtsId)!
+        const { code, id } = dtsMap.get(resolvedDtsId)!
+        const hasSvelteSource =
+          RE_SVELTE.test(id) ||
+          Array.from(dtsMap.values()).some((mod) => RE_SVELTE.test(mod.id))
+        const useSvelte = svelte || hasSvelteSource
         let dtsCode: string | undefined
         let map: SourceMapInput | undefined
-        debug('generate dts %s from %s', dtsId, id)
+        debug(
+          'generate dts %s (resolved from %s) from %s',
+          resolvedDtsId,
+          dtsId,
+          id,
+        )
 
         if (tsgo) {
-          if (RE_VUE.test(id))
-            throw new Error('tsgo does not support Vue files.')
+          if (RE_VUE.test(id) || RE_SVELTE.test(id))
+            throw new Error('tsgo does not support Vue or Svelte files.')
           const dtsPath = path.resolve(
             tsgoDist!,
             path.relative(path.resolve(rootDir), filename_to_dts(id)),
@@ -258,7 +294,7 @@ export function createGeneratePlugin({
               sources: [id],
             }
           }
-        } else if (oxc && !RE_VUE.test(id)) {
+        } else if (oxc && !RE_VUE.test(id) && !RE_SVELTE.test(id)) {
           const result = isolatedDeclarationSync(id, code, oxc)
           if (result.errors.length) {
             const [error] = result.errors
@@ -278,17 +314,32 @@ export function createGeneratePlugin({
             : Array.from(dtsMap.values())
                 .filter((v) => v.isEntry)
                 .map((v) => v.id)
+
+          const svelteArtifacts = useSvelte
+            ? createSvelteVirtualFiles(dtsMap.values())
+            : undefined
+          const tscId = useSvelte && RE_SVELTE.test(id) ? toSvelteTsxId(id) : id
+          const tscEntries =
+            useSvelte && entries
+              ? entries.map((entry) =>
+                  RE_SVELTE.test(entry) ? toSvelteTsxId(entry) : entry,
+                )
+              : entries
+
           const options: Omit<TscOptions, 'programs'> = {
             tsconfig,
             tsconfigRaw,
             build,
             incremental,
             cwd,
-            entries,
-            id,
+            entries: tscEntries,
+            id: tscId,
             sourcemap,
             vue,
             tsMacro,
+            svelte: useSvelte,
+            svelteFiles: svelteArtifacts?.files,
+            svelteShim: svelteArtifacts?.shimPath,
             context: tscContext,
           }
           let result: TscResult
@@ -302,6 +353,9 @@ export function createGeneratePlugin({
           }
           dtsCode = result.code
           map = result.map
+          if (useSvelte && dtsCode) {
+            dtsCode = restoreSvelteImport(dtsCode)
+          }
 
           if (dtsCode && RE_JSON.test(id)) {
             // if contains invalid json keys

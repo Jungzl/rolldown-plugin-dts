@@ -1,5 +1,5 @@
-import path from 'node:path'
 import { createDebug } from 'obug'
+import { normalizePath } from './system.ts'
 import type ts from 'typescript'
 
 const debug = createDebug('rolldown-plugin-dts:tsc-context')
@@ -30,13 +30,13 @@ export function createContext(): TscContext {
 }
 
 export function invalidateContextFile(context: TscContext, file: string): void {
-  file = path.resolve(file).replaceAll('\\', '/')
+  file = normalizePath(file)
   debug(`invalidating context file: ${file}`)
   context.files.delete(file)
   context.programs = context.programs.filter((program) => {
     return !program
       .getSourceFiles()
-      .some((sourceFile) => sourceFile.fileName === file)
+      .some((sourceFile) => normalizePath(sourceFile.fileName) === file)
   })
   context.projects.clear()
 }

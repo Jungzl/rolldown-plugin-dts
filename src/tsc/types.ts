@@ -19,6 +19,9 @@ export interface TscOptions {
   sourcemap: boolean
   vue?: boolean
   tsMacro?: boolean
+  svelte?: boolean
+  svelteFiles?: Record<string, string>
+  svelteShim?: string
   context?: TscContext
 }
 

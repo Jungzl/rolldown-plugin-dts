@@ -8,6 +8,7 @@ import {
   RE_CSS,
   RE_DTS,
   RE_JSON,
+  RE_SVELTE,
   RE_TS,
   RE_VUE,
 } from './filename.ts'
@@ -15,9 +16,23 @@ import type { OptionsResolved } from './options.ts'
 import type { Plugin, ResolvedId } from 'rolldown'
 
 const debug = createDebug('rolldown-plugin-dts:resolver')
+const DTS_VIRTUAL_QUERY = '?virtual'
+const RE_SVELTE_DTS = /\.svelte\.d\.[cm]?ts$/
+
+function toMaybeVirtualDtsId(id: string): string {
+  if (RE_SVELTE_DTS.test(id)) {
+    if (id.endsWith(DTS_VIRTUAL_QUERY)) {
+      return id
+    }
+    return `${id}${DTS_VIRTUAL_QUERY}`
+  }
+  return id
+}
 
 function isSourceFile(id: string) {
-  return RE_TS.test(id) || RE_VUE.test(id) || RE_JSON.test(id)
+  return (
+    RE_TS.test(id) || RE_VUE.test(id) || RE_SVELTE.test(id) || RE_JSON.test(id)
+  )
 }
 
 export function createDtsResolvePlugin({
@@ -97,7 +112,7 @@ export function createDtsResolvePlugin({
           debug('Resolving dts import to declaration file:', id)
           // It's already a .d.ts file, we're done
           return {
-            id: dtsResolution,
+            id: toMaybeVirtualDtsId(dtsResolution),
             moduleSideEffects,
           }
         }
@@ -108,7 +123,7 @@ export function createDtsResolvePlugin({
           // then redirect the import to the future .d.ts path
           await this.load({ id: dtsResolution })
           return {
-            id: filename_to_dts(dtsResolution),
+            id: toMaybeVirtualDtsId(filename_to_dts(dtsResolution)),
             moduleSideEffects,
           }
         }

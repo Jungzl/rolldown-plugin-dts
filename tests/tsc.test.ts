@@ -233,6 +233,59 @@ describe('tsc', () => {
     expect(snapshot).toMatchSnapshot()
   })
 
+  test('svelte-sfc (explicit option) w/ ts-compiler', async () => {
+    const root = path.resolve(dirname, 'fixtures/svelte-sfc')
+    const { snapshot } = await rolldownBuild(
+      path.resolve(root, 'main.ts'),
+      [
+        dts({
+          emitDtsOnly: true,
+          svelte: true,
+          compilerOptions: {
+            isolatedDeclarations: false,
+          },
+        }),
+      ],
+      { external: ['svelte'] },
+    )
+    expect(snapshot).toMatchSnapshot()
+  })
+
+  test('svelte-sfc (auto-detect) w/ ts-compiler', async () => {
+    const root = path.resolve(dirname, 'fixtures/svelte-sfc')
+    const { snapshot } = await rolldownBuild(
+      path.resolve(root, 'main.ts'),
+      [
+        dts({
+          emitDtsOnly: true,
+          compilerOptions: {
+            isolatedDeclarations: false,
+          },
+        }),
+      ],
+      { external: ['svelte'] },
+    )
+    expect(snapshot).toMatchSnapshot()
+  })
+
+  test('svelte-sfc-export w/ ts-compiler', async () => {
+    const root = path.resolve(dirname, 'fixtures/svelte-sfc-export')
+    const { snapshot } = await rolldownBuild(
+      path.resolve(root, 'main.ts'),
+      [
+        dts({
+          emitDtsOnly: true,
+          svelte: true,
+          compilerOptions: {
+            isolatedDeclarations: false,
+          },
+        }),
+      ],
+      { external: ['svelte'] },
+    )
+    expect(snapshot).toMatchSnapshot()
+  })
+
   test('jsdoc', async () => {
     const { snapshot } = await rolldownBuild(
       path.resolve(dirname, 'fixtures/jsdoc.ts'),

@@ -451,6 +451,66 @@ declare const foo = 42;
 export { foo };"
 `;
 
+exports[`tsc > svelte-sfc (auto-detect) w/ ts-compiler 1`] = `
+"// main.d.ts
+import * as _$svelte from "svelte";
+import { Snippet } from "svelte";
+
+//#region tests/fixtures/svelte-sfc/App.svelte.d.ts?virtual
+type $$ComponentProps = {
+  bar: string;
+  children: Snippet;
+};
+declare const App: _$svelte.Component<$$ComponentProps, {}, "">;
+type App = ReturnType<typeof App>;
+//#endregion
+export { App };"
+`;
+
+exports[`tsc > svelte-sfc (explicit option) w/ ts-compiler 1`] = `
+"// main.d.ts
+import * as _$svelte from "svelte";
+import { Snippet } from "svelte";
+
+//#region tests/fixtures/svelte-sfc/App.svelte.d.ts?virtual
+type $$ComponentProps = {
+  bar: string;
+  children: Snippet;
+};
+declare const App: _$svelte.Component<$$ComponentProps, {}, "">;
+type App = ReturnType<typeof App>;
+//#endregion
+export { App };"
+`;
+
+exports[`tsc > svelte-sfc-export w/ ts-compiler 1`] = `
+"// main.d.ts
+import * as _$svelte from "svelte";
+
+//#region tests/fixtures/svelte-sfc-export/App.svelte.d.ts?virtual
+interface $$__sveltets_2_IsomorphicComponent<Props extends Record<string, any> = any, Events extends Record<string, any> = any, Slots extends Record<string, any> = any, Exports = {}, Bindings = string> {
+  new (options: _$svelte.ComponentConstructorOptions<Props>): _$svelte.SvelteComponent<Props, Events, Slots> & {
+    $$bindings?: Bindings;
+  } & Exports;
+  (internal: unknown, props: Props & {
+    $$events?: Events;
+    $$slots?: Slots;
+  }): Exports & {
+    $set?: any;
+    $on?: any;
+  };
+  z_$$bindings?: Bindings;
+}
+declare const App: $$__sveltets_2_IsomorphicComponent<{
+  title: string;
+}, {
+  [evt: string]: CustomEvent<any>;
+}, {}, {}, string>;
+type App = InstanceType<typeof App>;
+//#endregion
+export { App };"
+`;
+
 exports[`tsc > ts-macro w/ ts-compiler 1`] = `
 "// main.d.ts
 //#region tests/fixtures/ts-macro/main.d.ts

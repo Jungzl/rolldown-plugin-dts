@@ -151,6 +151,11 @@ export interface TscOptions {
   vue?: boolean
 
   /**
+   * If `true`, the plugin will generate `.d.ts` files using `svelte2tsx`.
+   */
+  svelte?: boolean
+
+  /**
    * If `true`, the plugin will generate `.d.ts` files using `@ts-macro/tsc`.
    */
   tsMacro?: boolean
@@ -267,6 +272,7 @@ export function resolveOptions({
   incremental = false,
   vue = false,
   tsMacro = false,
+  svelte = false,
   parallel = false,
   eager = false,
   newContext = false,
@@ -310,7 +316,13 @@ export function resolveOptions({
     compilerOptions,
   }
 
-  oxc ??= !!(compilerOptions?.isolatedDeclarations && !vue && !tsgo && !tsMacro)
+  oxc ??= !!(
+    compilerOptions?.isolatedDeclarations &&
+    !vue &&
+    !svelte &&
+    !tsgo &&
+    !tsMacro
+  )
   if (oxc === true) {
     oxc = {}
   }
@@ -328,6 +340,11 @@ export function resolveOptions({
         '[rolldown-plugin-dts] The `tsgo` option is not compatible with the `vue` option. Please disable one of them.',
       )
     }
+    if (svelte) {
+      throw new Error(
+        '[rolldown-plugin-dts] The `tsgo` option is not compatible with the `svelte` option. Please disable one of them.',
+      )
+    }
     if (tsMacro) {
       throw new Error(
         '[rolldown-plugin-dts] The `tsgo` option is not compatible with the `tsMacro` option. Please disable one of them.',
@@ -339,15 +356,22 @@ export function resolveOptions({
       )
     }
   }
-  if (oxc && vue) {
-    throw new Error(
-      '[rolldown-plugin-dts] The `oxc` option is not compatible with the `vue` option. Please disable one of them.',
-    )
-  }
-  if (oxc && tsMacro) {
-    throw new Error(
-      '[rolldown-plugin-dts] The `oxc` option is not compatible with the `tsMacro` option. Please disable one of them.',
-    )
+  if (oxc) {
+    if (vue) {
+      throw new Error(
+        '[rolldown-plugin-dts] The `oxc` option is not compatible with the `vue` option. Please disable one of them.',
+      )
+    }
+    if (svelte) {
+      throw new Error(
+        '[rolldown-plugin-dts] The `oxc` option is not compatible with the `svelte` option. Please disable one of them.',
+      )
+    }
+    if (tsMacro) {
+      throw new Error(
+        '[rolldown-plugin-dts] The `oxc` option is not compatible with the `tsMacro` option. Please disable one of them.',
+      )
+    }
   }
 
   if (tsgo && !warnedTsgo) {
@@ -380,6 +404,7 @@ export function resolveOptions({
     incremental,
     vue,
     tsMacro,
+    svelte,
     parallel,
     eager,
     newContext,

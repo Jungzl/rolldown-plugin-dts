@@ -2,7 +2,7 @@ import path from 'node:path'
 import { createDebug } from 'obug'
 import ts from 'typescript'
 import { globalContext } from './context.ts'
-import { createFsSystem } from './system.ts'
+import { createFsSystem, normalizePath } from './system.ts'
 import { customTransformers, formatHost, setSourceMapRoot } from './utils.ts'
 import { createProgramFactory } from './volar.ts'
 import type { TscModule, TscOptions, TscResult } from './types.ts'
@@ -25,15 +25,17 @@ const defaultCompilerOptions: ts.CompilerOptions = {
 
 function createOrGetTsModule(options: TscOptions): TscModule {
   const { id, entries, context = globalContext } = options
+  const resolvedId = normalizePath(id)
+  const resolvedEntries = entries?.map((entry) => normalizePath(entry))
   const program = context.programs.find((program) => {
     const roots = program.getRootFileNames()
-    if (entries) {
-      return entries.every((entry) => roots.includes(entry))
+    if (resolvedEntries) {
+      return resolvedEntries.every((entry) => roots.includes(entry))
     }
-    return roots.includes(id)
+    return roots.includes(resolvedId)
   })
   if (program) {
-    const sourceFile = program.getSourceFile(id)
+    const sourceFile = program.getSourceFile(resolvedId)
     if (sourceFile) {
       return { program, file: sourceFile }
     }
@@ -53,10 +55,19 @@ function createTsProgram({
   tsconfig,
   tsconfigRaw,
   vue,
+  svelte,
+  svelteFiles,
+  svelteShim,
   tsMacro,
   cwd,
   context = globalContext,
 }: TscOptions): TscModule {
+  if (svelteFiles) {
+    for (const [fileName, code] of Object.entries(svelteFiles)) {
+      context.files.set(normalizePath(fileName), code)
+    }
+  }
+
   const fsSystem = createFsSystem(context.files)
   const baseDir = tsconfig ? path.dirname(tsconfig) : cwd
   const parsedConfig = ts.parseJsonConfigFileContent(
@@ -85,6 +96,8 @@ function createTsProgram({
     id,
     entries,
     vue,
+    svelte,
+    svelteShim,
     tsMacro,
   })
 }
@@ -96,28 +109,41 @@ function createTsProgramFromParsedConfig({
   id,
   entries,
   vue,
+  svelte,
+  svelteShim,
   tsMacro,
 }: {
   parsedConfig: ts.ParsedCommandLine
   fsSystem: ts.System
   baseDir: string
-} & Pick<TscOptions, 'entries' | 'vue' | 'tsMacro' | 'id'>): TscModule {
+} & Pick<
+  TscOptions,
+  'entries' | 'vue' | 'svelte' | 'svelteShim' | 'tsMacro' | 'id'
+>): TscModule {
   const compilerOptions: ts.CompilerOptions = {
     ...defaultCompilerOptions,
     ...parsedConfig.options,
+    ...(svelte ? { allowImportingTsExtensions: true } : null),
     $configRaw: parsedConfig.raw,
     $rootDir: baseDir,
   }
 
   const rootNames = [
     ...new Set(
-      [id, ...(entries || parsedConfig.fileNames)].map((f) =>
-        fsSystem.resolvePath(f),
-      ),
+      [
+        id,
+        ...(entries || parsedConfig.fileNames),
+        ...(svelteShim ? [svelteShim] : []),
+      ].map((f) => fsSystem.resolvePath(f)),
     ),
   ]
 
   const host = ts.createCompilerHost(compilerOptions, true)
+  host.fileExists = fsSystem.fileExists
+  host.readFile = fsSystem.readFile
+  host.directoryExists = fsSystem.directoryExists?.bind(fsSystem)
+  host.realpath = fsSystem.realpath?.bind(fsSystem)
+  host.getCurrentDirectory = () => fsSystem.getCurrentDirectory()
 
   const createProgram = createProgramFactory(ts, { vue, tsMacro })
   const program = createProgram({
@@ -127,7 +153,8 @@ function createTsProgramFromParsedConfig({
     projectReferences: parsedConfig.projectReferences,
   })
 
-  const sourceFile = program.getSourceFile(id)
+  const resolvedId = fsSystem.resolvePath(id)
+  const sourceFile = program.getSourceFile(resolvedId)
 
   if (!sourceFile) {
     debug(`source file not found in program: ${id}`)
@@ -140,7 +167,7 @@ function createTsProgramFromParsedConfig({
       )
     }
 
-    if (fsSystem.fileExists(id)) {
+    if (fsSystem.fileExists(resolvedId)) {
       debug(`File ${id} exists on disk.`)
       throw new Error(
         `Unable to load file ${id} from the program. This seems like a bug of rolldown-plugin-dts. Please report this issue to https://github.com/sxzz/rolldown-plugin-dts/issues`,
